@@ -10,20 +10,21 @@
   'use strict';
   // Read default configuration from script tag if available.
   var scriptConfig = {};
-  (function() {
-    var tags = document.getElementsByTagName("script");
-    var tag = tags[tags.length - 1];
-    if (!tag) { return; }
-    var attrs = tag.attributes;
-    var value;
-    for (var i = 0, len = attrs.length; i < len; i++) {
-      if (/data-(\w+)$/.test(attrs[i].nodeName)) {
-        value = attrs[i].nodeValue;
-        if (value === 'false') { value = false; }
-        scriptConfig[RegExp.$1] = value;
-      }
-    }
-  })();
+  // [PH_MOD] - Commented to safely prevent the extension from interfering with mint.intuit.com
+  // (function() {
+  //   var tags = document.getElementsByTagName("script");
+  //   var tag = tags[tags.length - 1];
+  //   if (!tag) { return; }
+  //   var attrs = tag.attributes;
+  //   var value;
+  //   for (var i = 0, len = attrs.length; i < len; i++) {
+  //     if (/data-(\w+)$/.test(attrs[i].nodeName)) {
+  //       value = attrs[i].nodeValue;
+  //       if (value === 'false') { value = false; }
+  //       scriptConfig[RegExp.$1] = value;
+  //     }
+  //   }
+  // })();
 
   // Build the singleton factory. The factory can be accessed through
   // singleton.factory() to instantiate a new instance.
