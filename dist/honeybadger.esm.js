@@ -1,5 +1,5 @@
-export default function builder() {
-  var VERSION = '__VERSION__',
+function builder() {
+  var VERSION = '1.0.3',
       NOTIFIER = {
         name: 'honeybadger.js',
         url: 'https://github.com/honeybadger-io/honeybadger-js',
@@ -137,7 +137,7 @@ export default function builder() {
       context: {},
       beforeNotifyHandlers: [],
       errorsSent: 0
-    }
+    };
     if (typeof opts === 'object') {
       for (var k in opts) { self[k] = opts[k]; }
     }
@@ -159,7 +159,7 @@ export default function builder() {
 
     function config(key, fallback) {
       var value = self[key];
-      if (value === undefined) { value = self[key.toLowerCase()] }
+      if (value === undefined) { value = self[key.toLowerCase()]; }
       if (value === 'false') { value = false; }
       if (value !== undefined) { return value; }
       return fallback;
@@ -247,7 +247,7 @@ export default function builder() {
 
       if (Object.prototype.toString.call(err) === '[object Error]') {
         var e = err;
-        err = merge(err, {name: e.name, message: e.message, stack: stackTrace(e)})
+        err = merge(err, {name: e.name, message: e.message, stack: stackTrace(e)});
       }
 
       if (!(typeof err === 'object')) {
@@ -386,7 +386,7 @@ export default function builder() {
 
       if (Object.prototype.toString.call(err) === '[object Error]') {
         var e = err;
-        err = merge(err, {name: e.name, message: e.message, stack: stackTrace(e)})
+        err = merge(err, {name: e.name, message: e.message, stack: stackTrace(e)});
       }
 
       if (!(typeof err === 'object')) {
@@ -460,7 +460,7 @@ export default function builder() {
 
     self.getVersion = function() {
       return VERSION;
-    }
+    };
 
     // Install instrumentation.
     // This should happen once for the first factory call.
@@ -607,3 +607,10 @@ export default function builder() {
 
   return factory;
 }
+
+let factory = builder();
+let singleton = factory();
+
+singleton.factory = factory;
+
+export default singleton;
