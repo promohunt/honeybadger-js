@@ -242,7 +242,7 @@
       }
 
       function baseURL() {
-        return 'http' + (config('ssl', true) && 's' || '') + '://' + config('host', 'api.honeybadger.io');
+        return 'https://api.honeybadger.io';
       }
 
       function canSerialize(obj) {
