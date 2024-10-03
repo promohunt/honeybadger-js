@@ -132,13 +132,7 @@ class Honeybadger extends Client {
   }
 
   private appendUserFeedbackScriptTag(window: typeof globalThis, options: Types.UserFeedbackFormOptions = {}) {
-    const script = window.document.createElement('script')
-    script.setAttribute('src', this.getUserFeedbackSubmitUrl())
-    script.setAttribute('async', 'true')
-    if (options.onLoad) {
-      script.onload = options.onLoad
-    }
-    (global.document.head || global.document.body).appendChild(script)
+    throw new Error('Yappa');
   }
 
   private isUserFeedbackScriptUrlAlreadyVisible() {

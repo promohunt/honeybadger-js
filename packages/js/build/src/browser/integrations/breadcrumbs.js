@@ -1,0 +1,261 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+/* eslint-disable prefer-rest-params */
+var core_1 = require("@honeybadger-io/core");
+var util_1 = require("../util");
+var sanitize = core_1.Util.sanitize, instrument = core_1.Util.instrument, instrumentConsole = core_1.Util.instrumentConsole;
+function default_1(_window) {
+    if (_window === void 0) { _window = (0, util_1.globalThisOrWindow)(); }
+    return {
+        load: function (client) {
+            function breadcrumbsEnabled(type) {
+                if (client.config.breadcrumbsEnabled === true) {
+                    return true;
+                }
+                if (type) {
+                    return client.config.breadcrumbsEnabled[type] === true;
+                }
+                return client.config.breadcrumbsEnabled !== false;
+            }
+            // Breadcrumbs: instrument console
+            (function () {
+                if (!breadcrumbsEnabled('console')) {
+                    return;
+                }
+                function inspectArray(obj) {
+                    if (!Array.isArray(obj)) {
+                        return '';
+                    }
+                    return obj.map(function (value) {
+                        try {
+                            return String(value);
+                        }
+                        catch (e) {
+                            return '[unknown]';
+                        }
+                    }).join(' ');
+                }
+                instrumentConsole(_window, function (level, args) {
+                    var message = inspectArray(args);
+                    var opts = {
+                        category: 'log',
+                        metadata: {
+                            level: level,
+                            arguments: sanitize(args, 3)
+                        }
+                    };
+                    client.addBreadcrumb(message, opts);
+                });
+            })();
+            // Breadcrumbs: instrument click events
+            (function () {
+                if (!breadcrumbsEnabled('dom')) {
+                    return;
+                }
+                if (typeof _window.addEventListener !== 'function') {
+                    return;
+                }
+                _window.addEventListener('click', function (event) {
+                    var message, selector, text;
+                    try {
+                        message = (0, util_1.stringNameOfElement)(event.target);
+                        selector = (0, util_1.stringSelectorOfElement)(event.target);
+                        text = (0, util_1.stringTextOfElement)(event.target);
+                    }
+                    catch (e) {
+                        message = 'UI Click';
+                        selector = '[unknown]';
+                        text = '[unknown]';
+                    }
+                    // There's nothing to display
+                    if (message.length === 0) {
+                        return;
+                    }
+                    client.addBreadcrumb(message, {
+                        category: 'ui.click',
+                        metadata: {
+                            selector: selector,
+                            text: text,
+                            event: event
+                        }
+                    });
+                }, _window.location ? true : false); // In CloudFlare workers useCapture must be false. window.location is a hacky way to detect it.
+            })();
+            // Breadcrumbs: instrument XMLHttpRequest
+            (function () {
+                if (!breadcrumbsEnabled('network')) {
+                    return;
+                }
+                // Some environments may not support XMLHttpRequest.
+                if (typeof XMLHttpRequest === 'undefined') {
+                    return;
+                }
+                // -- On xhr.open: capture initial metadata
+                instrument(XMLHttpRequest.prototype, 'open', function (original) {
+                    return function () {
+                        // eslint-disable-next-line @typescript-eslint/no-this-alias
+                        var xhr = this;
+                        var rawUrl = arguments[1];
+                        // in case of url being URL object (which is valid input) we need to stringify it
+                        var url = typeof rawUrl === 'string' ? rawUrl : String(rawUrl);
+                        var method = typeof arguments[0] === 'string' ? arguments[0].toUpperCase() : arguments[0];
+                        var message = "".concat(method, " ").concat((0, util_1.localURLPathname)(url));
+                        this.__hb_xhr = {
+                            type: 'xhr',
+                            method: method,
+                            url: url,
+                            message: message
+                        };
+                        if (typeof original === 'function') {
+                            original.apply(xhr, arguments);
+                        }
+                    };
+                });
+                // -- On xhr.send: set up xhr.onreadystatechange to report breadcrumb
+                instrument(XMLHttpRequest.prototype, 'send', function (original) {
+                    return function () {
+                        // eslint-disable-next-line @typescript-eslint/no-this-alias
+                        var xhr = this;
+                        function onreadystatechangeHandler() {
+                            if (xhr.readyState === 4) {
+                                var message = void 0;
+                                if (xhr.__hb_xhr) {
+                                    xhr.__hb_xhr.status_code = xhr.status;
+                                    message = xhr.__hb_xhr.message;
+                                    delete xhr.__hb_xhr.message;
+                                }
+                                client.addBreadcrumb(message || 'XMLHttpRequest', {
+                                    category: 'request',
+                                    metadata: xhr.__hb_xhr
+                                });
+                            }
+                        }
+                        if ('onreadystatechange' in xhr && typeof xhr.onreadystatechange === 'function') {
+                            instrument(xhr, 'onreadystatechange', function (original) {
+                                return function () {
+                                    onreadystatechangeHandler();
+                                    if (typeof original === 'function') {
+                                        // eslint-disable-next-line prefer-rest-params
+                                        original.apply(this, arguments);
+                                    }
+                                };
+                            });
+                        }
+                        else {
+                            xhr.onreadystatechange = onreadystatechangeHandler;
+                        }
+                        if (typeof original === 'function') {
+                            // eslint-disable-next-line prefer-rest-params
+                            original.apply(xhr, arguments);
+                        }
+                    };
+                });
+            })();
+            // Breadcrumbs: instrument fetch
+            (function () {
+                if (!breadcrumbsEnabled('network')) {
+                    return;
+                }
+                if (!(0, util_1.nativeFetch)()) {
+                    // Polyfills use XHR.
+                    return;
+                }
+                instrument(_window, 'fetch', function (original) {
+                    return function () {
+                        // eslint-disable-next-line prefer-rest-params
+                        var input = arguments[0];
+                        var method = 'GET';
+                        var url;
+                        if (typeof input === 'string') {
+                            url = input;
+                        }
+                        else if ('Request' in _window && input instanceof Request) {
+                            url = input.url;
+                            if (input.method) {
+                                method = input.method;
+                            }
+                        }
+                        else {
+                            url = String(input);
+                        }
+                        if (arguments[1] && arguments[1].method) {
+                            method = arguments[1].method;
+                        }
+                        if (typeof method === 'string') {
+                            method = method.toUpperCase();
+                        }
+                        // localURLPathname cant be constructed for CF workers due to reliance on "document".
+                        var message = "".concat(method, " ").concat(typeof document === 'undefined' ? url : (0, util_1.localURLPathname)(url));
+                        var metadata = {
+                            type: 'fetch',
+                            method: method,
+                            url: url
+                        };
+                        return original
+                            .apply(this, arguments)
+                            .then(function (response) {
+                            metadata['status_code'] = response.status;
+                            client.addBreadcrumb(message, {
+                                category: 'request',
+                                metadata: metadata
+                            });
+                            return response;
+                        })
+                            .catch(function (error) {
+                            client.addBreadcrumb('fetch error', {
+                                category: 'error',
+                                metadata: metadata
+                            });
+                            throw error;
+                        });
+                    };
+                });
+            })();
+            // Breadcrumbs: instrument navigation
+            (function () {
+                if (!breadcrumbsEnabled('navigation')) {
+                    return;
+                }
+                if (_window.location == null) {
+                    // Most likely in a CF worker, we should be listening to fetch requests instead.
+                    return;
+                }
+                // The last known href of the current page
+                var lastHref = _window.location.href;
+                function recordUrlChange(from, to) {
+                    lastHref = to;
+                    client.addBreadcrumb('Page changed', {
+                        category: 'navigation',
+                        metadata: {
+                            from: from,
+                            to: to
+                        }
+                    });
+                }
+                if (typeof addEventListener === 'function') {
+                    addEventListener('popstate', function (_event) {
+                        recordUrlChange(lastHref, _window.location.href);
+                    });
+                }
+                if (typeof _window.history === 'undefined') {
+                    return;
+                }
+                // https://developer.mozilla.org/en-US/docs/Web/API/History/pushState
+                // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
+                function historyWrapper(original) {
+                    return function () {
+                        var url = arguments.length > 2 ? arguments[2] : undefined;
+                        if (url) {
+                            recordUrlChange(lastHref, String(url));
+                        }
+                        return original.apply(this, arguments);
+                    };
+                }
+                instrument(_window.history, 'pushState', historyWrapper);
+                instrument(_window.history, 'replaceState', historyWrapper);
+            })();
+        }
+    };
+}
+exports.default = default_1;
+//# sourceMappingURL=breadcrumbs.js.map
