@@ -67,30 +67,9 @@
   };
 
   HoneybadgerUserFeedbackForm.prototype.submit = function () {
-    const self = this
-    if (self.loading) return
-
-    self.loading = true
-    document.getElementById('honeybadger-feedback-error').style.display = 'none'
-    document.getElementById('honeybadger-feedback-submit').disabled = true
-
-    const script = document.createElement('script')
-    const form = document.getElementById('honeybadger-feedback-form')
-    script.src = self.getEndpoint() +
-        '?format=js' +
-        `&api_key=${self.getApiKey()}` +
-        `&token=${self.getLastNoticeId()}` +
-        `&name=${encodeURIComponent(self.form.name.value)}` +
-        `&email=${encodeURIComponent(self.form.email.value)}` +
-        `&comment=${encodeURIComponent(self.form.comment.value)}`
-    script.onerror = function () {
-      self.loading = false
-      // unfortunately we don't get any info here about the error (i.e. HTTP 403)
-      self.onFormError('')
-      // remove script so that user can try again
-      form.removeChild(script)
-    }
-    form.appendChild(script);
+    throw new Error(
+      "HoneybadgerUserFeedbackForm.prototype.submit() removed due to Chrome store restriction",
+    );
   };
 
   HoneybadgerUserFeedbackForm.prototype.onSuccess = function () {
